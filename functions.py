@@ -305,7 +305,7 @@ def build_weighted_zscore(df, columns, weights=None, min_non_missing=2):
 
 def iqr_bounds(series, whisker_width=1.5):
     """Return Tukey-style IQR bounds for a numeric series."""
-    numeric = pd.to_numeric(series, errors="coerce").dropna()
+    numeric = pd.to_numeric(series, errors="coerce").astype("float64").dropna()
     if numeric.empty:
         return np.nan, np.nan, np.nan, np.nan
     q1 = numeric.quantile(0.25)
@@ -320,13 +320,17 @@ def summarize_outliers(df, columns, domain_rules=None, whisker_width=1.5):
     domain_rules = domain_rules or {}
     rows = []
     for column in columns:
-        numeric = pd.to_numeric(df[column], errors="coerce")
-        valid = numeric.dropna()
+        if column not in df.columns:
+            continue
+
+        numeric = pd.to_numeric(df[column], errors="coerce").astype("float64")
+        valid_mask = numeric.notna()
+        valid = numeric[valid_mask]
         if valid.empty:
             continue
 
         q1, q3, lower, upper = iqr_bounds(numeric, whisker_width=whisker_width)
-        iqr_mask = (numeric < lower) | (numeric > upper)
+        iqr_mask = ((numeric < lower) | (numeric > upper)).fillna(False)
 
         if column in domain_rules:
             domain_mask = domain_rules[column](numeric)
@@ -334,23 +338,37 @@ def summarize_outliers(df, columns, domain_rules=None, whisker_width=1.5):
         else:
             domain_mask = pd.Series(False, index=numeric.index)
 
+        # Percentages should be measured on valid numeric rows only.
+        valid_count = int(valid.count())
+        iqr_outliers = int(iqr_mask[valid_mask].sum())
+        domain_outliers = int(domain_mask[valid_mask].sum())
+
         rows.append(
             {
                 "feature": column,
-                "valid_count": int(valid.count()),
+                "valid_count": valid_count,
                 "q1": q1,
                 "q3": q3,
                 "iqr_lower": lower,
                 "iqr_upper": upper,
-                "iqr_outliers": int(iqr_mask.fillna(False).sum()),
-                "iqr_outlier_pct": round(100 * iqr_mask.fillna(False).mean(), 2),
-                "domain_outliers": int(domain_mask.sum()),
-                "domain_outlier_pct": round(100 * domain_mask.mean(), 2),
+                "iqr_outliers": iqr_outliers,
+                "iqr_outlier_pct": round(100 * iqr_outliers / valid_count, 2),
+                "domain_outliers": domain_outliers,
+                "domain_outlier_pct": round(100 * domain_outliers / valid_count, 2),
                 "min": valid.min(),
                 "max": valid.max(),
             }
         )
     return pd.DataFrame(rows)
+
+#def summarize_outlier(df, columns, domain_rules=None, whisker_width=1.5):
+    #"""Backward-compatible wrapper for summarize_outliers."""
+    #return summarize_outliers(
+    #    df,
+    #    columns=columns,
+    #    domain_rules=domain_rules,
+    #    whisker_width=whisker_width,
+    #)
 
 def compare_text_columns(df, col_a, col_b, method="token_set_ratio"):
     """Compare two unempty text columns in a DataFrame using fuzzy string matching.
@@ -380,3 +398,79 @@ def compare_text_columns(df, col_a, col_b, method="token_set_ratio"):
     out["similarity_score"] = score
     avg_score = np.mean(score)
     return out, avg_score
+
+def audio_signature_score(df):
+    """Aggregate audio features into a normalized tonal profile score."""
+    audio_features = ["centroid", "rolloff", "flux", "flatness", "loudness", "pitch", "rms", "zcr"]
+    subset = df[audio_features].copy()
+    
+    # Standardize each feature and compute mean across available features
+    for col in audio_features:
+        if col in subset.columns:
+            numeric = pd.to_numeric(subset[col], errors="coerce")
+            mean_val = numeric.mean()
+            std_val = numeric.std()
+            if pd.notna(mean_val) and std_val > 0:
+                subset[col] = (numeric - mean_val) / std_val
+            else:
+                subset[col] = 0.0
+    
+    # Return mean z-score across audio features (rows with at least 3 valid features)
+    valid_mask = subset.notna().sum(axis=1) >= 3
+    score = subset.mean(axis=1)
+    score[~valid_mask] = np.nan
+    return score
+
+def artist_consistency_score(df, artist_col="id_author"):
+    """Compute artist-level consistency based on variance of key metrics."""
+    consistency = {}
+    
+    for artist_id in df[artist_col].unique():
+        artist_tracks = df[df[artist_col] == artist_id]
+        
+        # Compute variance of key metrics for this artist
+        key_metrics = ["popularity", "duration_ms", "swear_density_total"]
+        variances = []
+        
+        for metric in key_metrics:
+            if metric in df.columns:
+                values = pd.to_numeric(artist_tracks[metric], errors="coerce").dropna()
+                if len(values) > 1:
+                    variances.append(values.var())
+        
+        # Mean variance across metrics; higher = more erratic, lower = more consistent
+        consistency[artist_id] = np.mean(variances) if variances else np.nan
+    
+    # Map back to dataframe (lower scores = more consistent)
+    return df[artist_col].map(consistency)
+
+def artist_geographic_diversity(df, artist_col="id_author", geo_col="region", missing_value=np.nan):
+    """Compute artist geographic deviation from the dominant region.
+
+    The score is in [0, 1]:
+    - 0.0 for artists in the most represented region
+    - larger values for less represented regions
+    - missing_value for artists with missing geographic origin
+    """
+    if artist_col not in df.columns or geo_col not in df.columns:
+        return pd.Series(np.nan, index=df.index)
+
+    artist_region = df[[artist_col, geo_col]].drop_duplicates(subset=[artist_col]).copy()
+    artist_region["_geo_norm"] = artist_region[geo_col].map(normalize_text)
+    artist_region.loc[artist_region["_geo_norm"] == "", "_geo_norm"] = np.nan
+
+    region_counts = artist_region["_geo_norm"].value_counts(dropna=True)
+    if region_counts.empty:
+        return pd.Series(missing_value, index=df.index)
+
+    dominant_count = float(region_counts.iloc[0])
+    deviation_map = {
+        region: 1.0 - (count / dominant_count)
+        for region, count in region_counts.items()
+    }
+
+    artist_region["_geo_deviation"] = artist_region["_geo_norm"].map(deviation_map)
+    artist_region["_geo_deviation"] = artist_region["_geo_deviation"].fillna(missing_value)
+
+    by_artist = artist_region.set_index(artist_col)["_geo_deviation"]
+    return df[artist_col].map(by_artist)
