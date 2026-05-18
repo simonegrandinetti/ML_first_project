@@ -858,3 +858,33 @@ def select_redundant_features(
     selected_score_table = score_table[score_table["feature"].isin(selected_unique)].copy()
     selected_score_table = selected_score_table.sort_values("keep_score", ascending=False)
     return selected_score_table, decision_table, selected_unique
+
+def find_frequent_itemsets(df, min_support):
+    df_bool = df.astype(bool)
+    item_support = df_bool.sum(axis=0)
+    frequent_singletons = [frozenset([item]) for item, supp in item_support.items() if supp >= min_support]
+
+    itemsets = [(itemset, int(item_support[next(iter(itemset))])) for itemset in frequent_singletons]
+    current_L = frequent_singletons
+    k = 2
+
+    while current_L:
+        candidates = []
+        for i in range(len(current_L)):
+            for j in range(i + 1, len(current_L)):
+                candidate = current_L[i] | current_L[j]
+                if len(candidate) == k:
+                    candidates.append(candidate)
+        candidates = list({c for c in candidates})
+
+        next_L = []
+        for candidate in candidates:
+            support = int(df_bool[list(candidate)].all(axis=1).sum())
+            if support >= min_support:
+                next_L.append(candidate)
+                itemsets.append((candidate, support))
+
+        current_L = next_L
+        k += 1
+
+    return itemsets
