@@ -888,3 +888,23 @@ def find_frequent_itemsets(df, min_support):
         k += 1
 
     return itemsets
+
+# Clean categorical values from common missing indicators to avoid mining rules on them instead of real categories.
+def is_missing_category(value):
+    """Return True for categories that should not become transaction items."""
+    if pd.isna(value): # Catches Nan and None, but also works for non-string types without raising an error.
+        return True
+    text = str(value).strip().lower()
+    return text in {"", "<na>", "nan", "none", "missing"} # Common indicators of missingness in categorical features.
+
+# Build baskets of items for each song, excluding missing categories, to prepare for TransactionEncoder.
+def row_to_transaction(row: pd.Series, categorical_columns: list) -> list:
+    """Convert one row of discretized features into a list of item strings."""
+    items = []
+    for col in categorical_columns:
+        value = row[col]
+        if is_missing_category(value): # Returns True for NaN and None and for matching indicators after normalization (argument==returned value)
+            continue
+        feature = col.removeprefix("disc_")
+        items.append(f"{feature}={value}")
+    return items
