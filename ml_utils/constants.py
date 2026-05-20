@@ -333,7 +333,9 @@ REGION_TO_MACROAREA = {
     "piemonte": "North",
     "puglia": "South",
     "sardegna": "Sardinia",
+    "sardinia": "Sardinia",
     "sicilia": "Sicily",
+    "sicily": "Sicily",
     "toscana": "Center",
     "trentino alto adige": "North",
     "trentino alto adige/sudtirol": "North",
@@ -410,8 +412,8 @@ DOMAIN_CONSISTENCY_RULES = {
     ("active_start", "active_end"): lambda s1, s2: s1.isna() | s2.isna() | (s1 <= s2),
     
     # Release date should not be in the future
-    ("album_release_date",): lambda dates: dates.isna() | (dates <= pd.Timestamp.now()),
+    ("album_release_date",): lambda dates: dates.isna() | (dates <= date.today()),
     
     # Birth date should not be after today
-    ("birth_date",): lambda dates: dates.isna() | (dates <= pd.Timestamp.now()),
+    ("birth_date",): lambda dates: dates.isna() | (dates <= date.today()),
 }

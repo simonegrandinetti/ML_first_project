@@ -160,13 +160,23 @@ def artist_geographic_diversity(df, artist_col="id_author", geo_col="region", mi
     if artist_col not in df.columns or geo_col not in df.columns:
         return pd.Series(np.nan, index=df.index)
 
-    artist_region = df[[artist_col, geo_col]].drop_duplicates(subset=[artist_col]).copy()
-    artist_region["_geo_norm"] = artist_region[geo_col].map(normalize_text)
-    artist_region.loc[artist_region["_geo_norm"] == "", "_geo_norm"] = np.nan
+    work = df[[artist_col, geo_col]].copy()
+    work["_geo_norm"] = work[geo_col].map(normalize_text)
+    work.loc[work["_geo_norm"] == "", "_geo_norm"] = np.nan
+
+    # Keep one region per artist using the first non-missing value available.
+    artist_region = (
+        work.loc[work["_geo_norm"].notna(), [artist_col, "_geo_norm"]]
+        .drop_duplicates(subset=[artist_col], keep="first")
+        .copy()
+    )
+
+    all_artists = pd.Index(df[artist_col].drop_duplicates())
+    by_artist = pd.Series(missing_value, index=all_artists)
 
     region_counts = artist_region["_geo_norm"].value_counts(dropna=True)
     if region_counts.empty:
-        return pd.Series(missing_value, index=df.index)
+        return df[artist_col].map(by_artist)
 
     dominant_count = float(region_counts.iloc[0])
     deviation_map = {
@@ -177,5 +187,5 @@ def artist_geographic_diversity(df, artist_col="id_author", geo_col="region", mi
     artist_region["_geo_deviation"] = artist_region["_geo_norm"].map(deviation_map)
     artist_region["_geo_deviation"] = artist_region["_geo_deviation"].fillna(missing_value)
 
-    by_artist = artist_region.set_index(artist_col)["_geo_deviation"]
+    by_artist.loc[artist_region[artist_col].values] = artist_region["_geo_deviation"].values
     return df[artist_col].map(by_artist)
