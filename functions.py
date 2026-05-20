@@ -83,121 +83,101 @@ ENGINEERED_FEATURE_DOCS = [
     {
         "feature": "swear_IT",
         "family": "textual",
-        "role": "provided feature",
         "description": "Count of Italian swear words detected in the lyrics.",
     },
     {
         "feature": "swear_EN",
         "family": "textual",
-        "role": "provided feature",
         "description": "Count of English swear words detected in the lyrics.",
     },
     {
         "feature": "swear_IT_words",
         "family": "textual",
-        "role": "provided feature",
         "description": "List of matched Italian swear words found in the lyrics.",
     },
     {
         "feature": "swear_EN_words",
         "family": "textual",
-        "role": "provided feature",
         "description": "List of matched English swear words found in the lyrics.",
     },
     {
         "feature": "n_sentences",
         "family": "textual",
-        "role": "provided feature",
         "description": "Number of detected sentences in the lyrics.",
     },
     {
         "feature": "n_tokens",
         "family": "textual",
-        "role": "provided feature",
         "description": "Number of detected tokens/words in the lyrics.",
     },
     {
         "feature": "tokens_per_sent",
         "family": "textual",
-        "role": "provided feature",
         "description": "Average number of tokens per sentence.",
     },
     {
         "feature": "char_per_tok",
         "family": "textual",
-        "role": "provided feature",
         "description": "Average number of characters per token.",
     },
     {
         "feature": "lexical_density",
         "family": "textual",
-        "role": "provided feature",
         "description": "Ratio of lexical words over all tokens.",
     },
     {
         "feature": "avg_token_per_clause",
         "family": "textual",
-        "role": "provided feature",
         "description": "Average number of tokens per clause.",
     },
     {
         "feature": "modified_popularity",
         "family": "song_level",
-        "role": "provided feature",
         "description": "Alternative popularity-like score already included in the source data.",
     },
     {
         "feature": "centroid",
         "family": "audio",
-        "role": "provided feature",
         "description": "Spectral centroid, a proxy for the brightness of the sound.",
     },
     {
         "feature": "rolloff",
         "family": "audio",
-        "role": "provided feature",
         "description": "Spectral rolloff, the frequency below which most spectral energy is concentrated.",
     },
     {
         "feature": "flux",
         "family": "audio",
-        "role": "provided feature",
         "description": "Spectral flux, measuring frame-to-frame spectral change.",
     },
     {
         "feature": "rms",
         "family": "audio",
-        "role": "provided feature",
         "description": "Root mean square energy of the audio signal.",
     },
     {
         "feature": "zcr",
         "family": "audio",
-        "role": "provided feature",
         "description": "Zero-crossing rate, often related to noisiness or percussiveness.",
     },
     {
         "feature": "flatness",
         "family": "audio",
-        "role": "provided feature",
-        "description": "Spectral flatness, indicating how tone-like versus noise-like the signal is.",
+        "description": "Spectral flatness, how tone-like versus noise-like the signal is.",
     },
     {
         "feature": "spectral_complexity",
         "family": "audio",
-        "role": "provided feature",
         "description": "Count-based spectral complexity descriptor.",
     },
     {
         "feature": "pitch",
         "family": "audio",
-        "role": "provided feature",
         "description": "Estimated pitch-related descriptor.",
     },
     {
         "feature": "loudness",
         "family": "audio",
-        "role": "provided feature",
         "description": "Perceived loudness-related descriptor.",
     },
 ]
@@ -216,8 +196,8 @@ REGION_TO_MACROAREA = {
     "molise": "South",
     "piemonte": "North",
     "puglia": "South",
-    "sardegna": "Islands",
-    "sicilia": "Islands",
+    "sardegna": "Sardinia",
+    "sicilia": "Sicily",
     "toscana": "Center",
     "trentino alto adige": "North",
     "trentino alto adige/sudtirol": "North",
@@ -227,8 +207,6 @@ REGION_TO_MACROAREA = {
     "valle d'aosta": "North",
     "veneto": "North",
 }
-
-
 
 
 def normalize_text(text):
