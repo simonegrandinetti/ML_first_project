@@ -198,6 +198,8 @@ REGION_TO_MACROAREA = {
     "puglia": "South",
     "sardegna": "Sardinia",
     "sicilia": "Sicily",
+    "sardinia": "Sardinia",
+    "sicily": "Sicily",
     "toscana": "Center",
     "trentino alto adige": "North",
     "trentino alto adige/sudtirol": "North",
