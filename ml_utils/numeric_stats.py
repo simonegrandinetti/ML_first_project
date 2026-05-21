@@ -135,6 +135,115 @@ def audio_signature_score(df):
     return score
 
 
+def compute_mer_mood_features(df):
+    """Compute MER-inspired mood features and nullable labels from audio inputs.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, dict]
+        - DataFrame with normalized audio features, arousal/valence scores,
+          normalized scores, and nullable ``mood_label``.
+        - Metadata with thresholds, coverage counts, and per-feature missing counts.
+    """
+    arousal_features = ["bpm", "loudness", "rms", "flux", "spectral_complexity"]
+    valence_features = ["centroid", "rolloff", "pitch", "flatness", "zcr"]
+    required_features = arousal_features + valence_features
+
+    def _minmax_norm(series):
+        numeric = pd.to_numeric(series, errors="coerce")
+        min_val = numeric.min()
+        max_val = numeric.max()
+        if pd.isna(min_val) or pd.isna(max_val) or min_val == max_val:
+            return pd.Series(np.nan, index=series.index, dtype="float64")
+        return ((numeric - min_val) / (max_val - min_val)).astype("float64")
+
+    def _norm01(series):
+        numeric = pd.to_numeric(series, errors="coerce")
+        min_val = numeric.min()
+        max_val = numeric.max()
+        if pd.isna(min_val) or pd.isna(max_val) or min_val == max_val:
+            return pd.Series(np.nan, index=series.index, dtype="float64")
+        return ((numeric - min_val) / (max_val - min_val)).astype("float64")
+
+    derived = pd.DataFrame(index=df.index)
+    for col in required_features:
+        derived[f"norm_{col}"] = _minmax_norm(df[col])
+
+    derived["arousal_score"] = (
+        0.30 * derived["norm_bpm"]
+        + 0.25 * derived["norm_loudness"]
+        + 0.20 * derived["norm_rms"]
+        + 0.15 * derived["norm_flux"]
+        + 0.10 * derived["norm_spectral_complexity"]
+    )
+    derived["valence_score"] = (
+        0.30 * derived["norm_centroid"]
+        + 0.20 * derived["norm_rolloff"]
+        + 0.20 * derived["norm_pitch"]
+        + 0.15 * (1 - derived["norm_flatness"])
+        + 0.15 * (1 - derived["norm_zcr"])
+    )
+    derived["arousal_score_n"] = _norm01(derived["arousal_score"])
+    derived["valence_score_n"] = _norm01(derived["valence_score"])
+
+    thresholds = {
+        "a33": float(derived["arousal_score_n"].quantile(0.33)),
+        "a66": float(derived["arousal_score_n"].quantile(0.66)),
+        "a80": float(derived["arousal_score_n"].quantile(0.80)),
+        "v33": float(derived["valence_score_n"].quantile(0.33)),
+        "v66": float(derived["valence_score_n"].quantile(0.66)),
+    }
+
+    eligible_mask = derived["arousal_score_n"].notna() & derived["valence_score_n"].notna()
+    a = derived["arousal_score_n"]
+    v = derived["valence_score_n"]
+    a_hi = a > thresholds["a66"]
+    a_lo = a < thresholds["a33"]
+    v_hi = v > thresholds["v66"]
+    v_lo = v < thresholds["v33"]
+
+    mood_label = pd.Series(pd.NA, index=df.index, dtype="string")
+    remaining = eligible_mask.copy()
+
+    energetic_mask = remaining & v_hi & (a > thresholds["a80"])
+    mood_label.loc[energetic_mask] = "energetic"
+    remaining &= ~energetic_mask
+
+    cheerful_mask = remaining & v_hi & ~a_hi
+    mood_label.loc[cheerful_mask] = "cheerful"
+    remaining &= ~cheerful_mask
+
+    sad_mask = remaining & v_lo & a_lo
+    mood_label.loc[sad_mask] = "sad"
+    remaining &= ~sad_mask
+
+    aggressive_mask = remaining & v_lo & a_hi
+    mood_label.loc[aggressive_mask] = "aggressive"
+    remaining &= ~aggressive_mask
+
+    tense_mask = remaining & ~v_hi & a_hi
+    mood_label.loc[tense_mask] = "tense"
+    remaining &= ~tense_mask
+
+    calm_mask = remaining & ~v_lo & a_lo
+    mood_label.loc[calm_mask] = "calm"
+    remaining &= ~calm_mask
+
+    mood_label.loc[remaining] = "neutral"
+    derived["mood_label"] = mood_label
+
+    metadata = {
+        "thresholds": thresholds,
+        "n_complete_rows": int(eligible_mask.sum()),
+        "n_missing_rows": int((~eligible_mask).sum()),
+        "missing_counts_by_feature": {
+            col: int(pd.to_numeric(df[col], errors="coerce").isna().sum())
+            for col in required_features
+        },
+    }
+    return derived, metadata
+
+
 def artist_consistency_score(df, artist_col="id_author"):
     """Compute artist-level consistency based on variance of key metrics."""
     consistency = {}

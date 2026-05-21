@@ -28,17 +28,42 @@ def get_feature_groups(df):
 
 def feature_group_table(df):
     """Build a tidy table describing feature groups and their observation level."""
+    known_columns = {
+        column: group
+        for group, columns in FEATURE_GROUPS.items()
+        for column in columns
+    }
+
+    def infer_group(column):
+        if column in known_columns:
+            return known_columns[column]
+        return "derived"
+
+    def infer_level(column):
+        if column in known_columns:
+            return "artist" if known_columns[column] in {"artist_level", "geographic"} else "song"
+
+        artist_prefixes = ("birth_date_", "active_start_", "active_end_", "artist_")
+        artist_derived = {
+            "artist_song_count",
+            "artist_consistency_score",
+            "artist_geographic_diversity",
+        }
+
+        if column.startswith(artist_prefixes) or column in artist_derived:
+            return "artist"
+
+        return "song"
+
     rows = []
-    for group, columns in get_feature_groups(df).items():
-        level = "artist" if group in {"artist_level", "geographic"} else "song"
-        for column in columns:
-            rows.append(
-                {
-                    "feature": column,
-                    "group": group,
-                    "level": level,
-                }
-            )
+    for column in df.columns:
+        rows.append(
+            {
+                "feature": column,
+                "group": infer_group(column),
+                "level": infer_level(column),
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -291,17 +316,17 @@ def compute_final_release_year(df, date_column="album_release_date", year_column
     df = df.copy()
     
     final_year = pd.Series(pd.NA, index=df.index, dtype="Int64")
-    
+
     # Priority 1: Extract year from datetime column
-    if date_column in df.columns and pd.api.types.is_datetime64_any_dtype(df[date_column]):
-        extracted_year = df[date_column].dt.year.astype("Int64")
-        final_year = final_year.where(extracted_year.isna(), extracted_year)
-    
-    # Priority 2: Use numeric year column as fallback
+    if date_column in df.columns:
+        extracted_year = pd.to_datetime(df[date_column], errors="coerce").dt.year.astype("Int64")
+        final_year = extracted_year
+
+    # Priority 2: Use numeric year column as fallback only where the primary source is missing
     if year_column in df.columns:
         numeric_year = pd.to_numeric(df[year_column], errors="coerce").astype("Int64")
-        final_year = final_year.where(numeric_year.isna(), numeric_year)
-    
+        final_year = final_year.fillna(numeric_year)
+
     df["final_release_year"] = final_year
-    
+
     return df

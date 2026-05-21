@@ -76,8 +76,8 @@ FEATURE_GROUPS = {
 }
 
 TRACKS_DTYPE_MAP = {
-    "id": "Int64",
-    "id_artist": "Int64",
+    "id": "string",
+    "id_artist": "string",
     "name_artist": "string",
     "full_title": "string",
     "title": "string",
@@ -117,7 +117,7 @@ TRACKS_DTYPE_MAP = {
     "explicit": "boolean",
     "popularity": "Float64",
     "album_image": "string",
-    "id_album": "Int64",
+    "id_album": "string",
     "lyrics": "string",
     "modified_popularity": "Float64",
 }
@@ -127,14 +127,14 @@ TRACKS_DATETIME_COLUMNS = {
 }
 
 ARTISTS_DTYPE_MAP = {
-    "id_author": "Int64",
+    "id_author": "string",
     "name": "string",
     "gender": "string",
     "birth_place": "string",
     "nationality": "string",
     "description": "string",
-    "active_start": "Int64",
-    "active_end": "Int64",
+    "active_start": "string",
+    "active_end": "string",
     "province": "string",
     "region": "string",
     "country": "string",
@@ -144,11 +144,14 @@ ARTISTS_DTYPE_MAP = {
 
 ARTISTS_DATETIME_COLUMNS = {
     "birth_date": "datetime64[ns]",
+    "active_start": "datetime64[ns]",
+    "active_end": "datetime64[ns]",
 }
 
 MERGED_DTYPE_MAP = {
     **TRACKS_DTYPE_MAP,
     **ARTISTS_DTYPE_MAP,
+    "id_song": "string",
 }
 
 MERGED_DATETIME_COLUMNS = {
@@ -385,10 +388,6 @@ DOMAIN_PLAUSIBILITY_RULES = {
     "swear_IT": lambda x: (x >= 0),  # count
     "swear_EN": lambda x: (x >= 0),  # count
     
-    # Artist temporal features
-    "active_start": lambda x: (x >= 1800) & (x <= date.today().year),  # reasonable artist birth year
-    "active_end": lambda x: (x >= 1800) & (x <= date.today().year),  # reasonable career end year
-    
     # Geographic features
     "latitude": lambda x: (x >= -90) & (x <= 90),  # valid latitude range
     "longitude": lambda x: (x >= -180) & (x <= 180),  # valid longitude range
@@ -399,7 +398,12 @@ DOMAIN_PLAUSIBILITY_RULES = {
 
 DOMAIN_CATEGORICAL_RULES = {
     "gender": {"M", "F", "U", "Unknown"},  # M, F, Unknown or empty
-    "language": {"en", "it", "it-IT", "en-US", "es", "fr", "de", "pt", "other"},  # common languages
+    "language": lambda s: (
+        s.astype("string")
+        .str.strip()
+        .str.lower()
+        .str.fullmatch(r"(?:[a-z]{2,3})(?:-[a-z]{2,3})?|other")
+    ),  # preserve ISO-like language codes, including less frequent ones
     "explicit": {True, False},  # boolean
     "album_type": {"album", "single", "compilation", "EP", "ep", "album_type", "other"},  # Spotify types
 }

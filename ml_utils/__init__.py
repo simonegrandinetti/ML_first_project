@@ -31,6 +31,7 @@ from ml_utils.numeric_stats import (
     artist_geographic_diversity,
     audio_signature_score,
     build_weighted_zscore,
+    compute_mer_mood_features,
     iqr_bounds,
     safe_divide,
     summarize_outliers,
