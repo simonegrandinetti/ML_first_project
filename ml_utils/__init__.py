@@ -5,6 +5,13 @@ from ml_utils.association import (
     is_missing_category,
     row_to_transaction,
 )
+from ml_utils.classification import (
+    build_task4_target,
+    make_task4_stratified_split,
+    plot_target_distribution,
+    plot_task4_feature_usefulness,
+    run_task4_feature_usefulness_analysis,
+)
 from ml_utils.clustering import (
     compute_cluster_profile_table,
     compute_cluster_projection_frame,
