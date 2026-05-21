@@ -41,6 +41,12 @@ from ml_utils.correlation_selection import (
     explain_correlation_groups_readable,
     select_redundant_features,
 )
+from ml_utils.models import (
+    split_for_unsupervised_downstream,
+    train_decision_tree_classifier,
+    train_random_forest_classifier,
+    train_svm_classifier,
+)
 from ml_utils.numeric_stats import (
     artist_consistency_score,
     artist_geographic_diversity,
