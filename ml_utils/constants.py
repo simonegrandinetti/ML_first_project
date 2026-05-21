@@ -159,6 +159,15 @@ MERGED_DATETIME_COLUMNS = {
     **ARTISTS_DATETIME_COLUMNS,
 }
 
+# Datetime columns for which we intentionally derive year/month/day components.
+# We keep raw `active_end` parsed as datetime, but omit derived parts because it
+# is not part of the intended analytical feature set.
+DATE_COMPONENT_COLUMNS = (
+    "album_release_date",
+    "birth_date",
+    "active_start",
+)
+
 ENGINEERED_FEATURE_DOCS = [
     {
         "feature": "swear_IT",
