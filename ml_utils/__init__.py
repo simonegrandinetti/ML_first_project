@@ -5,6 +5,13 @@ from ml_utils.association import (
     is_missing_category,
     row_to_transaction,
 )
+from ml_utils.clustering import (
+    compute_cluster_profile_table,
+    compute_cluster_projection_frame,
+    evaluate_kmeans_k_grid,
+    plot_cluster_boxplots,
+    plot_cluster_projection_pairs,
+)
 from ml_utils.constants import (
     ARTISTS_DATETIME_COLUMNS,
     ARTISTS_DTYPE_MAP,
