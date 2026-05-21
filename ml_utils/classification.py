@@ -10,6 +10,12 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_selection import VarianceThreshold, f_classif, mutual_info_classif
 from sklearn.model_selection import train_test_split
 
+from ml_utils.models import (
+    train_decision_tree_classifier,
+    train_random_forest_classifier,
+    train_svm_classifier,
+)
+
 
 TASK4_TARGET_ORDER = ["North", "Center", "Campania", "Lazio", "Sardegna", "South"]
 
@@ -245,4 +251,91 @@ def make_task4_stratified_split(
         "X_test": X_test,
         "y_train": y_train,
         "y_test": y_test,
+    }
+
+
+def make_task4_feature_ablation_split(split_artifacts, drop_features):
+    """Drop a selected feature subset from an existing Task 4 split."""
+    X_final = split_artifacts["X_final"]
+    missing = sorted(set(drop_features) - set(X_final.columns))
+    if missing:
+        raise KeyError(f"Requested ablation features are missing from X_final: {missing}")
+
+    ablated_artifacts = dict(split_artifacts)
+    remaining_features = [col for col in X_final.columns if col not in drop_features]
+
+    for key in ("X_final", "X_train", "X_test"):
+        ablated_artifacts[key] = split_artifacts[key].drop(columns=drop_features)
+
+    ablated_artifacts["dropped_features"] = list(drop_features)
+    ablated_artifacts["remaining_features"] = remaining_features
+    ablated_artifacts["n_features_before"] = int(X_final.shape[1])
+    ablated_artifacts["n_features_after"] = int(len(remaining_features))
+    return ablated_artifacts
+
+
+def train_task4_classifier_suite(X_train, y_train, X_test, y_test):
+    """Train the three baseline Task 4 classifiers with fixed settings."""
+    dt_result = train_decision_tree_classifier(
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        criterion="gini",
+        max_depth=None,
+        min_samples_leaf=1,
+        random_state=42,
+    )
+
+    rf_result = train_random_forest_classifier(
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        n_estimators=300,
+        max_depth=None,
+        min_samples_leaf=1,
+        random_state=42,
+        n_jobs=-1,
+    )
+
+    svm_result = train_svm_classifier(
+        X_train=X_train,
+        y_train=y_train,
+        X_test=X_test,
+        y_test=y_test,
+        C=1.0,
+        kernel="rbf",
+        gamma="scale",
+        probability=False,
+        scale=True,
+    )
+
+    results_by_model = {
+        "Decision Tree": dt_result,
+        "Random Forest": rf_result,
+        "SVM": svm_result,
+    }
+
+    comparison_df = (
+        pd.DataFrame(
+            [
+                {
+                    "model": model_name,
+                    "accuracy": result["accuracy"],
+                    "f1_macro": result["f1_macro"],
+                }
+                for model_name, result in results_by_model.items()
+            ]
+        )
+        .sort_values("f1_macro", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    return {
+        "dt_result": dt_result,
+        "rf_result": rf_result,
+        "svm_result": svm_result,
+        "results_by_model": results_by_model,
+        "comparison_df": comparison_df,
     }
