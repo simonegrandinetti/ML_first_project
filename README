@@ -8,7 +8,7 @@ Use the provided Conda environment file:
 
 ```bash
 conda env create -f ML_project_env.yml
-conda activate base
+conda activate ML_giuseppex2_simone
 ```
 
 If your local environment name is different, activate that one instead.
