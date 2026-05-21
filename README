@@ -1,0 +1,47 @@
+# ML First Project - Notebook Execution Guide
+
+This repository is executed primarily through `main_project.ipynb`.
+
+## 1) Environment setup
+
+Use the provided Conda environment file:
+
+```bash
+conda env create -f ML_project_env.yml
+conda activate base
+```
+
+If your local environment name is different, activate that one instead.
+
+## 2) Required data location
+
+Place data in the repository-level `dataset/` folder:
+
+- `dataset/artists.csv` (semicolon-separated)
+- `dataset/tracks.csv` (comma-separated)
+
+The notebook searches for `../dataset/` first, then `./dataset/`.
+
+## 3) Launch Jupyter
+
+From repo root:
+
+```bash
+jupyter notebook
+```
+
+Then open:
+
+- `main_project.ipynb`
+
+## 4) Execute notebook
+
+Run cells top-to-bottom (or use **Run All** once kernel is selected).
+
+The notebook depends on prior cells, so ordered execution is required.
+
+## 5) Project modules used by the notebook
+
+The notebook imports utilities from `ml_utils/` (preprocessing, stats, clustering, classification, and models).
+
+No extra action is needed if you run from repository root and the environment is active.
